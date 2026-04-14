@@ -1,0 +1,54 @@
+const damageBursts = new Map(); // victimId -> { remainingTicks, baseOpts, lastDamageTime, hasSlowness, damageCount, lastStaticParticleTime }      
+      
+// Unified damage burst handler for all entity types      
+function handleDamageBurst(attacker, victim, damageDealt, withItem) {      
+  const ticksPer3Hp = 4; // 0.2s per 3 HP at 20 Hz        
+  const totalTicks = Math.max(4, Math.floor(damageDealt / 3) * ticksPer3Hp);        
+  const existing = damageBursts.get(victim) || { remainingTicks: 0, baseOpts: null, lastDamageTime: 0, hasSlowness: false, damageCount: 0, lastStaticParticleTime: 0 };        
+  existing.remainingTicks = Math.max(existing.remainingTicks, totalTicks);        
+  existing.lastDamageTime = Date.now();      
+  existing.lastStaticParticleTime = Date.now();      
+        
+  // Apply slowness effect if not already applied      
+  if (!existing.hasSlowness) {      
+    const bleedDuration = totalTicks * 50;      
+    api.applyEffect(victim, "Slowness", bleedDuration, {      
+      icon: "Slowness",      
+      displayName: "Bleeding"      
+    });      
+    existing.hasSlowness = true;      
+  }      
+        
+  // Apply 5 damage and update particle count      
+  api.applyHealthChange(victim, -5, attacker, true);      
+  existing.damageCount++;      
+        
+  const dirOffset = (damageDealt / 3) * 0.1;      
+  const directionModifier = existing.damageCount * 0.1;      
+        
+  existing.baseOpts = {        
+    texture: "square_particle",        
+    dir1: [-1.5 - dirOffset - directionModifier, -0.2 - dirOffset - directionModifier, -1.5 - dirOffset - directionModifier],        
+    dir2: [1.5 + dirOffset + directionModifier, 0.2 + dirOffset + directionModifier, 1 + dirOffset + directionModifier],        
+    minLifeTime: 1.0,        
+    maxLifeTime: 2.5,        
+    minEmitPower: 1,        
+    maxEmitPower: 2,        
+    minSize: 0.01,        
+    maxSize: 0.3,        
+    manualEmitCount: 3 + existing.damageCount,      
+    gravity: [0, -8, 0],        
+    colorGradients: [{        
+      timeFraction: 0,        
+      minColor: [139, 0, 0, 1],        
+      maxColor: [80, 0, 0, 1],        
+    }],        
+    velocityGradients: [{        
+      timeFraction: 0,        
+      factor: 1,        
+      factor2: 1,        
+    }],        
+    blendMode: 1,        
+  };        
+  damageBursts.set(victim, existing);        
+};
