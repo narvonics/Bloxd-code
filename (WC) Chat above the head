@@ -1,0 +1,67 @@
+function styTxt(l){
+    let n=styTxt;
+    if(!n.e){
+        n.e={c:"color",w:"fontWeight",st:"fontStyle",s:"fontSize",o:"opacity"};
+        n.t=/(\\\<)|<(st|[cworis]) *([^>]+)?>/g;
+    }
+    if(l=="")return[""];
+
+    const r=[],e=new Map;
+    let t="",c=0;
+
+    for(let{index:f,0:u,1:a,2:o,3:i}of[...l.matchAll(n.t),{index:l.length}]){
+        t+=l.slice(c,f);
+        c=f+(u?.length??0);
+
+        if(a){ t+="<"; continue }
+
+        if(t){
+            r.push(e.size?{str:t,style:Object.fromEntries(e)}:t);
+            t="";
+        }
+
+        if(f!=l.length){
+            if(o=="r") e.clear();
+            else if(o=="i"&&i){
+                const s=Object.fromEntries(e);
+                delete s.fontStyle;
+                r.push({icon:i,style:s});
+            } else {
+                let s=n.e[o];
+                i ? e.set(s,o=="o"?Number(i):i) : e.delete(s);
+            }
+        }
+    }
+    return r;
+}
+
+let chatData = {};
+
+onPlayerJoin = (id)=>{
+    chatData[id] = null;
+};
+
+onPlayerChat = (id, msg)=>{
+    chatData[id] = {
+        full: msg,
+        index: 0,
+        phase: "typing",
+        wait: 2,
+        timer: 0
+    };
+    return false;
+};
+
+tick = (dt)=>{
+    const ids = api.getPlayerIds();
+
+    for(const id of ids){
+        const data = chatData[id];
+        if(!data) continue;
+
+        data.timer += dt;
+
+        let display = "";
+
+        if(data.phase === "typing"){
+};
