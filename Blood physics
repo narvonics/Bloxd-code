@@ -1,83 +1,56 @@
 const damageBursts = new Map(); // victimId -> { remainingTicks, baseOpts, lastDamageTime, hasSlowness, damageCount, lastStaticParticleTime }      
-      }        
-    }        
-            
-    // Spawn static particles every 0.3 seconds when on block        
-    if (currentTime - burst.lastStaticParticleTime >= 300) {        
-      let [x, y, z] = api.getPosition(victimId);        
-      const entityType = api.getEntityType(victimId);        
-              
-      let isOnBlock = false;        
-              
-      // Check if entity is standing on a block        
-      if (entityType === "Player") {        
-        const standingBlocks = api.getBlockCoordinatesPlayerStandingOn(victimId);        
-        isOnBlock = standingBlocks && standingBlocks.length > 0;        
-      } else {        
-        const blockBelow = api.getBlock(Math.floor(x), Math.floor(y - 0.5), Math.floor(z));        
-        isOnBlock = blockBelow !== "Air";        
-      }        
-              
-      // Only spawn static particles if on a block        
-      if (isOnBlock) {        
-        if (entityType === "Player") {        
-          y += 0.1; // Just above ground for players        
-        } else {        
-          y += 0.1; // Just above ground for mobs        
-        }        
-                
-        // Create 10 static particles with varied X and Z positions        
-        for (let i = 0; i < 10; i++) {        
-          const xOffset = (Math.random() - 0.5) * 1; // Random X offset between -0.5 and 0.5        
-          const zOffset = (Math.random() - 0.5) * 1; // Random Z offset between -0.5 and 0.5        
-                  
-          api.playParticleEffect({        
-            texture: "square_particle",        
-            dir1: [0, 0, 0],        
-            dir2: [0, 0, 0],        
-            pos1: [x + xOffset, y, z + zOffset],        
-            pos2: [x + xOffset, y, z + zOffset],        
-            minLifeTime: 35.0,        
-            maxLifeTime: 40.0,        
-            minEmitPower: 0,        
-            maxEmitPower: 0,        
-            minSize: 0.15,        
-            maxSize: 0.25,        
-            manualEmitCount: 3,        
-            gravity: [0, 0, 0],        
-            colorGradients: [{        
-              timeFraction: 0,        
-              minColor: [180, 0, 0, 0.9],        
-              maxColor: [120, 0, 0, 0.9],        
-            }],        
-            velocityGradients: [{        
-              timeFraction: 0,        
-              factor: 0,        
-              factor2: 0,        
-            }],        
-            blendMode: 1,        
-          });        
-        }        
-      }        
-              
-      burst.lastStaticParticleTime = currentTime;        
-    }        
-            
-    // Continue with regular particle effects        
-    let [x, y, z] = api.getPosition(victimId);        
-    const entityType = api.getEntityType(victimId);        
-            
-    // Apply different Y offset based on entity type for regular particles        
-    if (entityType === "Player") {        
-      y += 1.5;        
-    } else {        
-      y += 0.3;        
-    }        
-            
-    api.playParticleEffect({          
-      ...burst.baseOpts,          
-      pos1: [x, y, z],          
-      pos2: [x, y, z],          
-    });          
-    burst.remainingTicks--;          
+
+// Unified damage burst handler for all entity types      
+function handleDamageBurst(attacker, victim, damageDealt, withItem) {
+    const ticksPer3Hp = 4; // 0.2s per 3 HP at 20 Hz        
+    const totalTicks = Math.max(4, Math.floor(damageDealt / 3) * ticksPer3Hp);
+    const existing = damageBursts.get(victim) || { remainingTicks: 0, baseOpts: null, lastDamageTime: 0, hasSlowness: false, damageCount: 0, lastStaticParticleTime: 0 };
+    existing.remainingTicks = Math.max(existing.remainingTicks, totalTicks);
+    existing.lastDamageTime = Date.now();
+    existing.lastStaticParticleTime = Date.now();
+
+    // Apply slowness effect if not already applied      
+    if (!existing.hasSlowness) {
+        const bleedDuration = totalTicks * 50;
+        api.applyEffect(victim, "Slowness", bleedDuration, {
+            icon: "Slowness",
+            displayName: "Bleeding"
+        });
+        existing.hasSlowness = true;
+    }
+
+    // Apply 5 damage and update particle count      
+    api.applyHealthChange(victim, -5, attacker, true);
+    existing.damageCount++;
+
+    const dirOffset = (damageDealt / 3) * 0.1;
+    const directionModifier = existing.damageCount * 0.1;
+
+    existing.baseOpts = {
+        texture: "square_particle",
+        dir1: [-1.5 - dirOffset - directionModifier, -0.2 - dirOffset - directionModifier, -1.5 - dirOffset - directionModifier],
+        dir2: [1.5 + dirOffset + directionModifier, 0.2 + dirOffset + directionModifier, 1 + dirOffset + directionModifier],
+        minLifeTime: 1.0,
+        maxLifeTime: 2.5,
+        minEmitPower: 1,
+        maxEmitPower: 2,
+        minSize: 0.01,
+        maxSize: 0.3,
+        manualEmitCount: 3 + existing.damageCount,
+        gravity: [0, -8, 0],
+        colorGradients: [{
+            timeFraction: 0,
+            minColor: [139, 0, 0, 1],
+            maxColor: [80, 0, 0, 1],
+        }],
+        velocityGradients: [{
+            timeFraction: 0,
+            factor: 1,
+            factor2: 1,
+        }],
+        blendMode: 1,
+    };
+    damageBursts.set(victim, existing);
+}
+
 };
