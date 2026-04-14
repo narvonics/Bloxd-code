@@ -1,6 +1,3 @@
----
--- World Code
----
 const damageBursts = new Map(); // victimId -> { remainingTicks, baseOpts, lastDamageTime, hasSlowness, damageCount, lastStaticParticleTime }      
       
 // Unified damage burst handler for all entity types      
