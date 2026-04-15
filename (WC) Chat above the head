@@ -64,4 +64,42 @@ tick = (dt)=>{
         let display = "";
 
         if(data.phase === "typing"){
+            if(data.timer > 40){
+                data.timer = 0;
+                data.index++;
+                if(data.index >= data.full.length){
+                    data.phase = "wait";
+                }
+            }
+            display = data.full.slice(0, data.index);
+        }
+
+        else if(data.phase === "wait"){
+            data.wait -= dt/1000;
+            display = data.full;
+            if(data.wait <= 0){
+                data.phase = "shrinking";
+            }
+        }
+
+        else if(data.phase === "shrinking"){
+            if(data.timer > 30){
+                data.timer = 0;
+                data.index--;
+                if(data.index <= 0){
+                    chatData[id] = null;
+                    api.setTargetedPlayerSettingForEveryone(id, "nameTagInfo", null, true);
+                    continue;
+                }
+            }
+            display = data.full.slice(0, data.index);
+        }
+
+        api.setTargetedPlayerSettingForEveryone(id, "nameTagInfo", {
+            backgroundColor: "rgba(0,0,0,0.6)",
+            content: styTxt(`<c white><w bold>${display}`),
+            subtitle: styTxt(`<c #aaaaaa><w lighter>${api.getEntityName(id)}`),
+            subtitleBackgroundColor: "transparent"
+        }, true);
+    }
 };
